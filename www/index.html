@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#050508" />
+  <link rel="manifest" href="manifest.json" />
+  <title>LODIX - منصة مشاهدة الأفلام المترجمة</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Cairo', sans-serif; background-color: #050508; color: #fff; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body class="min-h-screen bg-[#050508] text-white select-none">
+  <header class="sticky top-0 z-40 bg-[#050508]/95 backdrop-blur-md border-b border-purple-500/20 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-600 flex items-center justify-center font-black text-xl shadow-lg shadow-purple-600/30">L</div>
+      <div>
+        <h1 class="text-xl font-black tracking-wider text-white">LODIX</h1>
+        <p class="text-[11px] text-purple-300">منصة مشاهدة الأفلام المترجمة</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+      <input id="searchBox" type="text" placeholder="ابحث عن فيلم..." class="bg-zinc-900 border border-purple-500/30 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 w-44 sm:w-64" />
+      <button onclick="toggleAddModal(true)" class="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs whitespace-nowrap">+ إضافة فيلم</button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+    <div id="playerArea" class="hidden bg-zinc-950 border border-purple-500/40 rounded-3xl overflow-hidden shadow-2xl">
+      <div class="p-4 bg-zinc-900 flex flex-wrap items-center justify-between gap-3 border-b border-white/10">
+        <h2 id="nowPlayingTitle" class="text-base sm:text-lg font-black text-purple-300"></h2>
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="serverButtons" class="flex items-center gap-1.5"></div>
+          <label class="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-bold cursor-pointer">
+            رفع ترجمة (.srt)
+            <input id="srtInput" type="file" accept=".srt,.vtt" class="hidden" />
+          </label>
+          <button onclick="closePlayer()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-red-600 text-xs font-bold">إغلاق ✕</button>
+        </div>
+      </div>
+      <div id="videoContainer" class="relative bg-black aspect-video flex items-center justify-center">
+        <video id="mainVideo" controls playsinline class="w-full h-full"></video>
+        <iframe id="embedFrame" class="hidden w-full h-full border-0" allowfullscreen></iframe>
+        <div id="subOverlay" class="absolute bottom-12 inset-x-4 text-center pointer-events-none"></div>
+      </div>
+    </div>
+
+    <div id="moviesGrid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"></div>
+  </main>
+
+  <!-- نافذة إضافة فيلم جديد داخل التطبيق -->
+  <div id="addModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-zinc-950 border border-purple-500/40 rounded-3xl p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 class="text-base font-black text-white">إضافة فيلم جديد إلى Lodix</h3>
+        <button onclick="toggleAddModal(false)" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <input id="newTitle" type="text" placeholder="اسم الفيلم بالعربية *" class="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2.5 text-white" />
+        <input id="newCategory" type="text" placeholder="التصنيف (أكشن، خيال علمي...)" class="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2.5 text-white" />
+        <input id="newPoster" type="url" dir="ltr" placeholder="رابط صورة البوستر (اختياري)" class="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2.5 text-white" />
+        <input id="newVideoUrl" type="url" dir="ltr" placeholder="رابط الفيديو المباشر MP4 أو Embed *" class="w-full bg-zinc-900 border border-white/15 rounded-xl px-3 py-2.5 text-purple-300" />
+        <button onclick="saveNewMovie()" class="w-full py-3 rounded-xl bg-gradient-to-l from-purple-600 to-fuchsia-600 text-white font-black text-sm">حفظ الفيلم الآن</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_MOVIES = [{"id":"tears-of-steel","title":"دموع الفولاذ","englishTitle":"Tears of Steel","category":"خيال علمي","subCategories":["خيال علمي","أكشن"],"year":2024,"rating":8.9,"duration":"12 دقيقة","durationSeconds":734,"quality":"4K ULTRA HD","ageRating":"+13","director":"إيان هوبيرت","cast":["ديريك دي لينت","سيرجيو هاسلبانك","روغير شيبيرز"],"poster":"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80","backdrop":"https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80","videoUrl":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4","servers":[{"id":"tos-1","name":"سيرفر Lodix السريع (FHD)","type":"mp4","url":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"},{"id":"tos-2","name":"سيرفر احتياطي (MP4)","type":"mp4","url":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"}],"shortDesc":"في مستقبل تسيطر فيه الآلات على كوكب الأرض، يقود فريق من العلماء والمحاربين في أمستردام مهمة أخيرة لإنقاذ البشرية.","fullStory":"تدور أحداث الفيلم في مدينة أمستردام المستقبلية، حيث يحاول العالم \"توم\" وفريقه من المقاتلين استعادة ذكرى حاسمة من الماضي لمنع الروبوتات المدرعة من تدمير ما تبقى من الحضارة البشرية.","subtitles":[{"start":0,"end":5,"text":"مرحباً بكم في منصة LODIX لمشاهدة الأفلام المترجمة"},{"start":5.5,"end":11,"text":"أمستردام - المهمة الأخيرة لاستعادة مستقبل البشرية"},{"start":11.5,"end":18,"text":"هل جميع الأنظمة الدفاعية جاهزة لبدء العملية؟"},{"start":18.5,"end":26,"text":"علينا التحرك بسرعة قبل أن ترصدنا الآلات المدرعة!"},{"start":26.5,"end":36,"text":"الترجمة العربية متزامنة تلقائياً ويمكنك رفع أي ملف SRT خاص بك"}]},{"id":"sintel-legend","title":"أسطورة سينتل","englishTitle":"Sintel","category":"فانتازيا","subCategories":["فانتازيا","دراما"],"year":2023,"rating":9.1,"duration":"15 دقيقة","durationSeconds":888,"quality":"1080p FHD","ageRating":"+12","director":"كولين ليفي","cast":["هالينا رين","توم هوفمان"],"poster":"https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80","backdrop":"https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80","videoUrl":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4","servers":[{"id":"sin-1","name":"سيرفر Lodix الرئيسي","type":"mp4","url":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"}],"shortDesc":"رحلة ملحمية تخوضها المحاربة الشابة \"سينتل\" عبر الجبال الجليدية والصحاري القاحلة بحثاً عن تنينها الصغير المخطوف.","fullStory":"تنطلق الفتاة الشجاعة سينتل في مغامرة محفوفة بالمخاطر عبر أراضٍ مجهولة بعد اختطاف صديقها التنين الصغير \"سكيلز\"، لتواجه في نهاية رحلتها حقيقة صادمة لم تكن في الحسبان.","subtitles":[{"start":0,"end":6,"text":"أسطورة سينتل - عرض حصري مترجم على منصة LODIX"},{"start":6.5,"end":14,"text":"لقد قطعتُ الجبال الجليدية بحثاً عنك..."},{"start":14.5,"end":22,"text":"لن أتوقف حتى أجد التنين الصغير مهما كلف الأمر"},{"start":22.5,"end":32,"text":"احذر! هناك عاصفة تقترب من البوابة الشمالية"}]},{"id":"big-buck-bunny","title":"مغامرة الغابة الكبرى","englishTitle":"Big Buck Bunny","category":"أنيميشن","subCategories":["أنيميشن","أكشن"],"year":2024,"rating":8.4,"duration":"10 دقائق","durationSeconds":596,"quality":"1080p FHD","ageRating":"عائلي","director":"ساشا غويديبيرغ","cast":["فريق بلندر السينمائي"],"poster":"https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=800&q=80","backdrop":"https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1600&q=80","videoUrl":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4","servers":[{"id":"bbb-1","name":"سيرفر Lodix المباشر","type":"mp4","url":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"}],"shortDesc":"أرنب عملاق طيب القلب يقرر التخطيط لرد ذكي ومضحك بعد تعرض أصدقائه في الغابة لمضايقات مستمرة من ثلاثة سناجب مشاغبة.","fullStory":"في غابة هادئة وجميلة، يستيقظ الأرنب العملاق ليجد три سناجب طائرة تزعج الفراشات والطيور، فيقرر استخدام مهاراته الهندسية في نصب فخاخ ذكية لتلقينهم درساً لن ينسوه.","subtitles":[{"start":0,"end":6,"text":"صباح مشرق جديد في قلب الغابة الخضراء - LODIX"},{"start":6.5,"end":14,"text":"يا له من يوم هادئ ومثالي للاستمتاع بالطبيعة!"},{"start":14.5,"end":24,"text":"يبدو أن السناجب المشاغبة تخطط لمقلب جديد..."}]},{"id":"elephants-dream","title":"حلم الآلة المفقود","englishTitle":"Elephants Dream","category":"إثارة","subCategories":["إثارة","خيال علمي"],"year":2023,"rating":8.2,"duration":"11 دقيقة","durationSeconds":653,"quality":"1080p HD","ageRating":"+13","director":"بسام قرداحي","cast":["تاغو غيرناندت","كاس يانسن"],"poster":"https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=800&q=80","backdrop":"https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80","videoUrl":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4","servers":[{"id":"ed-1","name":"سيرفر Lodix الأساسي","type":"mp4","url":"https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"}],"shortDesc":"رجلان يتجولان داخل متاهة ميكانيكية عملاقة تتغير جدرانها باستمرار، حيث يرى كل منهما عالماً مختلفاً تماماً عن الآخر.","fullStory":"يأخذ العجوز \"بروغ\" الشاب \"إيمو\" في جولة داخل آلة سريالية لا نهائية، محاولاً إقناعه بأن هذا العالم الميكانيكي هو الملاذ الآمن الوحيد، بينما يكتشف الشاب أسراراً خفية وراء الجدران المتحركة.","subtitles":[{"start":0,"end":6,"text":"تمسك جيداً ولا تنظر إلى الأسفل يا إيمو!"},{"start":6.5,"end":14,"text":"هذه الآلة العملاقة تتفاعل مع كل خطوة نخطوها"},{"start":14.5,"end":22,"text":"أنت تشاهد الآن النسخة المترجمة عبر تطبيق LODIX"}]}];
+    let MOVIES = JSON.parse(localStorage.getItem('lodix_standalone_movies') || 'null') || DEFAULT_MOVIES;
+    let activeSubs = [];
+
+    function parseSrt(text) {
+      const blocks = text.replace(/\r\n/g, '\n').split(/\n\s*\n/);
+      const cues = [];
+      for (const b of blocks) {
+        const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
+        const idx = lines.findIndex(l => l.includes('-->'));
+        if (idx !== -1) {
+          const [s, e] = lines[idx].split('-->');
+          const toSec = (str) => {
+            const p = str.trim().replace(',', '.').split(':');
+            return p.length === 3 ? (+p[0])*3600 + (+p[1])*60 + (+p[2]) : (+p[0])*60 + (+p[1]);
+          };
+          cues.push({ start: toSec(s), end: toSec(e.split(' ')[0]), text: lines.slice(idx+1).join(' ') });
+        }
+      }
+      return cues;
+    }
+
+    function renderMovies(filter = '') {
+      const grid = document.getElementById('moviesGrid');
+      const list = MOVIES.filter(m => m.title.includes(filter) || (m.englishTitle || '').toLowerCase().includes(filter.toLowerCase()));
+      grid.innerHTML = list.map((m, i) => `
+        <div class="bg-zinc-950 border border-purple-500/20 hover:border-purple-500 rounded-2xl overflow-hidden shadow-xl transition-all flex flex-col">
+          <div class="relative aspect-[2/3] overflow-hidden bg-zinc-900">
+            <img src="${m.poster}" alt="${m.title}" class="w-full h-full object-cover" />
+            <span class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-purple-600 text-[10px] font-bold">${m.category}</span>
+            <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-lg bg-black/80 text-amber-400 text-[10px] font-bold">★ ${m.rating || '8.5'}</span>
+          </div>
+          <div class="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-3">
+            <div>
+              <h3 class="text-sm sm:text-base font-black text-white truncate">${m.title}</h3>
+              <p class="text-[11px] text-purple-300 mb-1">${m.year || 2025}</p>
+              <p class="text-[11px] text-gray-400 line-clamp-2">${m.shortDesc || ''}</p>
+            </div>
+            <button onclick="playMovie(${i})" class="w-full py-2 rounded-xl bg-gradient-to-l from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 cursor-pointer">
+              ▶ مشاهدة الآن
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function playMovie(idx, srvIdx = 0) {
+      const movie = MOVIES[idx];
+      if (!movie) return;
+      document.getElementById('playerArea').classList.remove('hidden');
+      document.getElementById('nowPlayingTitle').textContent = movie.title;
+      const servers = movie.servers && movie.servers.length ? movie.servers : [{ name: 'سيرفر رئيسي', type: 'mp4', url: movie.videoUrl }];
+      const srv = servers[srvIdx] || servers[0];
+
+      const btnBox = document.getElementById('serverButtons');
+      btnBox.innerHTML = servers.map((s, si) => `
+        <button onclick="playMovie(${idx}, ${si})" class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${si === srvIdx ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-gray-300'}">${s.name}</button>
+      `).join('');
+
+      const vid = document.getElementById('mainVideo');
+      const emb = document.getElementById('embedFrame');
+      activeSubs = movie.subtitles || [];
+
+      if (srv.type === 'embed') {
+        vid.pause();
+        vid.classList.add('hidden');
+        emb.classList.remove('hidden');
+        emb.src = srv.url;
+      } else {
+        emb.src = '';
+        emb.classList.add('hidden');
+        vid.classList.remove('hidden');
+        vid.src = srv.url;
+        vid.play().catch(() => {});
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function closePlayer() {
+      const vid = document.getElementById('mainVideo');
+      vid.pause();
+      document.getElementById('embedFrame').src = '';
+      document.getElementById('playerArea').classList.add('hidden');
+    }
+
+    function toggleAddModal(show) {
+      document.getElementById('addModal').classList.toggle('hidden', !show);
+    }
+
+    function saveNewMovie() {
+      const title = document.getElementById('newTitle').value.trim();
+      const videoUrl = document.getElementById('newVideoUrl').value.trim();
+      if (!title || !videoUrl) return;
+      const category = document.getElementById('newCategory').value.trim() || 'أكشن';
+      const poster = document.getElementById('newPoster').value.trim() || 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80';
+      MOVIES.unshift({
+        id: 'm-' + Date.now(),
+        title,
+        englishTitle: title,
+        category,
+        year: 2025,
+        rating: 8.7,
+        poster,
+        videoUrl,
+        servers: [{ name: 'سيرفر Lodix', type: videoUrl.includes('.mp4') ? 'mp4' : 'embed', url: videoUrl }],
+        shortDesc: 'مضاف عبر تطبيق Lodix',
+        subtitles: []
+      });
+      localStorage.setItem('lodix_standalone_movies', JSON.stringify(MOVIES));
+      toggleAddModal(false);
+      renderMovies();
+    }
+
+    document.getElementById('srtInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const r = new FileReader();
+      r.onload = (ev) => { activeSubs = parseSrt(String(ev.target.result || '')); };
+      r.readAsText(file, 'UTF-8');
+    });
+
+    document.getElementById('mainVideo').addEventListener('timeupdate', (e) => {
+      const t = e.target.currentTime;
+      const cue = activeSubs.find(c => t >= c.start && t <= c.end);
+      const box = document.getElementById('subOverlay');
+      if (cue) {
+        box.innerHTML = '<span class="inline-block bg-black/85 border border-purple-500/40 px-4 py-2 rounded-xl text-white font-bold text-base sm:text-lg shadow-xl">' + cue.text + '</span>';
+      } else {
+        box.innerHTML = '';
+      }
+    });
+
+    document.getElementById('searchBox').addEventListener('input', (e) => renderMovies(e.target.value));
+    renderMovies();
+  </script>
+</body>
+</html>

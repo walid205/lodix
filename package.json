@@ -1,0 +1,15 @@
+{
+  "name": "lodix-movies-app",
+  "version": "1.0.0",
+  "description": "Lodix Arabic Movies Streaming App - APK Builder",
+  "private": true,
+  "scripts": {
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/cli": "^6.1.0",
+    "@capacitor/core": "^6.1.0"
+  }
+}
